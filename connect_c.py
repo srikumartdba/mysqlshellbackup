@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 import subprocess
 import sys,os
+import mysql.connector
 from typing import Self 
 sys.path.append("C:/Users/tantr/source/repos")
 from bkp import MyForm
@@ -173,13 +174,32 @@ class LoginForm(tk.Tk):
         port = self.entry_port.get()
         username = self.entry_username.get()
         password = self.entry_password.get()
-        command = f"mysqlsh --uri {hostname} --user {username} -p{password} -f c:/dump/query.sql"
-        print(command)  # Debugging
-        try:
+        print("in submit form")
+        #command = f"mysqlsh --uri {hostname} --user {username} -p{password}"
+        #command= f"mysqlsh --uri {hostname} --user {username} -p{password} 
+
+        #print(command)  # Debugging
+        result_message = connect_to_mysql(hostname,username,password,port)
+        print(result_message)
+        if result_message==True:
+            messagebox.showinfo("Success","Successfully connected to " + hostname)
+            welcome_form = WelcomeForm(hostname, username, port, password)
+            self.withdraw()
+
+        #my_instance = MyForm()
+        else:
+            error_msg = f"Failed to run query: {result_message}"
+            print("Error running MySQL Shell command:")
+            print(result_message)
+            messagebox.showerror("Error", error_msg)
+       
+
+        #try:
          # Execute the MySQL Shell command
-            run_mysqlsh(self,command, hostname,username,password,port)
-        except Exception as e:
-         messagebox.showerror("Error", str(e))    
+           # run_mysqlsh(self,command,hostname,username,password,port)
+        
+           #except Exception as e:
+        # messagebox.showerror("Error", str(e))    
          
 def toggle_password_visibility(self):
         if self.entry_password.cget("show") == "":
@@ -193,10 +213,10 @@ def toggle_password_visibility(self):
 
                 
 
-def run_mysqlsh(self,command, hostname,username,password,port):
+def run_mysqlsh(self,command,hostname,username,password,port):
     # Run mysqlsh command and capture output
     result = subprocess.run(command, capture_output=True, text=True, shell=True)
-
+    
     # Check if the command was successful
     if result.returncode == 0:
         success = "Successfully connected to the database"
@@ -251,6 +271,28 @@ def run_mysqlsh_backup(command_backup):
         else:
             self.entry_password.config(show="")
             self.show_password_button.config(text="Hide Password")
+            
+def connect_to_mysql(host, user, password, port):
+    print("in connec to mysql")
+    try:
+       
+        # Establish a connection to the MySQL database
+        connection = mysql.connector.connect(
+            host=host,
+            user=user,
+            password=password,
+            #database=database,
+            port=port
+        )
+        
+        if connection.is_connected():
+            # Close the connection
+            connection.close()
+            # Return success message
+            return True
+    except mysql.connector.Error as error:
+        # Return error message
+        return f"Error while connecting to MySQL: {error}"
 
 if __name__ == "__main__":
     login_form = LoginForm()
