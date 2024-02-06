@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 import subprocess
-import sys
+import sys,os
 from typing import Self 
 sys.path.append("C:/Users/tantr/source/repos")
 from bkp import MyForm
@@ -57,7 +57,11 @@ class BackupOptionsForm(tk.Frame):
     def choose_folder(self):
         self.selected_folder = filedialog.askdirectory()
         self.selected_folder_label.config(text=f"Selected Folder: {self.selected_folder}")
-
+        if self.selected_folder:
+            files_in_folder = os.listdir(self.selected_folder)
+            if files_in_folder:
+                messagebox.showwarning("Folder Contains Files", "The selected folder contains files. It is recommended to choose an empty folder for backup.")
+                
     def update_checkbox_state(self):
         # Update the state of the checkbox variables based on the checkbox values
         self.ocimds_var.set(self.ocimds_checkbox.instate(['selected']))
@@ -67,6 +71,10 @@ class BackupOptionsForm(tk.Frame):
 
     def submit_form(self):
         compatibility_options = []
+        ocimds="false"
+        if self.ocimds_var.get():
+            ocimds="true"
+
         # Initialize compatibility options with "force_innodb" by default
         if self.force_innodb_var.get():
             compatibility_options.append("force_innodb")
@@ -80,8 +88,8 @@ class BackupOptionsForm(tk.Frame):
 
         # Construct the MySQL dump command with selected options
         compatibility_options_str = ', '.join([f"'{option}'" for option in compatibility_options])
-        command_backup = f"mysqlsh --uri {self.hostname} --user {self.username} -p{self.password} -e util.dumpInstance('{self.selected_folder}', {{ocimds: {self.ocimds_var.get()}, compatibility: [{compatibility_options_str}]}})"
-
+        command_backup = f"mysqlsh --uri mysqlx://{self.username}:{self.password}@{self.hostname} -e \"util.dumpInstance('{self.selected_folder}', {{ocimds: {ocimds}, compatibility: [{compatibility_options_str}]}})\""
+        
         # Print the command for debugging
         print(f"Backup Type: {self.backup_type}")
         if self.backup_type == "Local":
@@ -96,7 +104,7 @@ class BackupOptionsForm(tk.Frame):
         print("Port:", self.port)
         print("Password:", self.password)
         print(command_backup)
-
+        run_mysqlsh_backup(command_backup)
 class WelcomeForm(tk.Tk):
     def __init__(self, hostname, username, port, password):
         super().__init__()
@@ -210,6 +218,31 @@ def run_mysqlsh(self,command, hostname,username,password,port):
         print("Error running MySQL Shell command:")
         print(result.stderr)
         messagebox.showerror("Error", error_msg)
+        
+def run_mysqlsh_backup(command_backup):
+    # Run mysqlsh command and capture output
+    result = subprocess.run(command_backup, capture_output=True, text=True, shell=True)
+
+    # Check if the command was successful
+    if result.returncode == 0:
+        success = "starting backup"
+        #global hostname,username,password,port
+        print("MySQL Shell Output:")
+        print(result.stdout)
+        messagebox.showinfo("Success", result.stdout)
+
+        # Open another window or form after successful login
+        #open_another_form()
+
+        #self.destroy()
+        
+        #my_instance = MyForm()
+    else:
+        error_msg = f"Failed to run query: {result.stderr}"
+        print("Error running MySQL Shell command:")
+        print(result.stderr)
+        messagebox.showerror("Error", error_msg)
+
 
     def toggle_password_visibility(self):
         if self.entry_password.cget("show") == "":
